@@ -1,142 +1,108 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../utils/supabaseClient';
+import { Exercise } from '../types'; // ✅ Import the Exercise type
 
 const WorkoutEntryForm = () => {
-  const [exercises, setExercises] = useState([]); // Exercise dropdown options
   const [exerciseName, setExerciseName] = useState('');
-  const [weight, setWeight] = useState('');
-  const [sets, setSets] = useState('');
-  const [reps, setReps] = useState('');
+  const [weight, setWeight] = useState<number | ''>('');
+  const [reps, setReps] = useState<number | ''>('');
+  const [sets, setSets] = useState<number | ''>('');
   const [notes, setNotes] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  const [exercises, setExercises] = useState<Exercise[]>([]); // ✅ Add TypeScript type
 
-  // Fetch exercises for the dropdown
   useEffect(() => {
     fetchExercises();
   }, []);
 
   const fetchExercises = async () => {
     const { data, error } = await supabase.from('exercise_list').select('name');
-    if (data) setExercises(data);
+    if (data) setExercises(data as Exercise[]); // ✅ Use "data as Exercise[]"
     if (error) console.error('Error fetching exercises:', error);
   };
 
-  // Fetch the most recent workout record for the selected exercise
-  const handleExerciseChange = async (selectedExercise: string) => {
-    setExerciseName(selectedExercise);
-
-    if (selectedExercise) {
-      const { data, error } = await supabase
-        .from('workouts')
-        .select('*')
-        .eq('exercise_name', selectedExercise)
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (data && data.length > 0) {
-        const { weight, sets, reps, notes } = data[0];
-        setWeight(weight || '');
-        setSets(sets || '');
-        setReps(reps || '');
-        setNotes(notes || '');
-      } else {
-        // Reset fields if no record exists
-        setWeight('');
-        setSets('');
-        setReps('');
-        setNotes('');
-      }
-
-      if (error) {
-        console.error('Error fetching previous workout:', error);
-      }
-    }
-  };
-
-  // Submit the workout record to Supabase
   const handleSubmit = async () => {
-    if (!exerciseName || !weight || !sets || !reps) {
-      alert('Please fill in all required fields.');
+    if (!exerciseName) {
+      alert('Please select an exercise name.');
       return;
     }
 
-    const { error } = await supabase.from('workouts').insert([
-      {
-        date: new Date().toISOString().split('T')[0],
-        exercise_name: exerciseName,
-        weight: parseInt(weight, 10),
-        sets: parseInt(sets, 10),
-        reps: parseInt(reps, 10),
-        notes: notes || '',
-      },
-    ]);
+    const { error } = await supabase.from('workouts').insert([{
+      exercise_name: exerciseName,
+      weight,
+      reps,
+      sets,
+      notes
+    }]);
 
-    if (!error) {
-      setSuccessMessage(`${exerciseName} logged successfully!`);
-      setTimeout(() => setSuccessMessage(''), 3000);
-
-      // Clear form fields
+    if (error) {
+      console.error('Error adding workout:', error);
+      alert('Failed to add workout. Please try again.');
+    } else {
       setExerciseName('');
       setWeight('');
-      setSets('');
       setReps('');
+      setSets('');
       setNotes('');
-    } else {
-      console.error('Error logging workout:', error);
-      alert('Error logging workout. Please try again.');
+      alert('Workout logged successfully!');
     }
   };
 
   return (
-    <div className="workout-form">
+    <div className="workout-entry-form">
       <h2>Log Workout</h2>
 
-      {successMessage && <div className="success-message fade-in-out">{successMessage}</div>}
+      <div className="form-group">
+        <label>Exercise</label>
+        <select value={exerciseName} onChange={(e) => setExerciseName(e.target.value)}>
+          <option value="">Select an exercise</option>
+          {exercises.map((exercise) => (
+            <option key={exercise.name} value={exercise.name}>
+              {exercise.name}
+            </option>
+          ))}
+        </select>
+      </div>
 
-      <label>Exercise Name</label>
-      <select value={exerciseName} onChange={(e) => handleExerciseChange(e.target.value)} className="dropdown">
-        <option value="">Select an Exercise</option>
-        {exercises.map((exercise, index) => (
-          <option key={index} value={exercise.name}>
-            {exercise.name}
-          </option>
-        ))}
-      </select>
+      <div className="form-group">
+        <label>Weight</label>
+        <input
+          type="number"
+          value={weight}
+          onChange={(e) => setWeight(Number(e.target.value))}
+          placeholder="Enter weight"
+        />
+      </div>
 
-      <label>Weight (lbs)</label>
-      <input
-        type="number"
-        placeholder="Enter weight"
-        value={weight}
-        onChange={(e) => setWeight(e.target.value)}
-      />
+      <div className="form-group">
+        <label>Reps</label>
+        <input
+          type="number"
+          value={reps}
+          onChange={(e) => setReps(Number(e.target.value))}
+          placeholder="Enter reps"
+        />
+      </div>
 
-      <label>Sets</label>
-      <input
-        type="number"
-        placeholder="Enter sets"
-        value={sets}
-        onChange={(e) => setSets(e.target.value)}
-      />
+      <div className="form-group">
+        <label>Sets</label>
+        <input
+          type="number"
+          value={sets}
+          onChange={(e) => setSets(Number(e.target.value))}
+          placeholder="Enter sets"
+        />
+      </div>
 
-      <label>Reps</label>
-      <input
-        type="number"
-        placeholder="Enter reps"
-        value={reps}
-        onChange={(e) => setReps(e.target.value)}
-      />
+      <div className="form-group">
+        <label>Notes</label>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Notes (optional)"
+        />
+      </div>
 
-      <label>Notes</label>
-      <textarea
-        placeholder="Enter notes (optional)"
-        value={notes}
-        onChange={(e) => setNotes(e.target.value)}
-      ></textarea>
-
-      <button onClick={handleSubmit} className="submit-button">
-        Submit
-      </button>
+      <button onClick={handleSubmit}>Log Workout</button>
     </div>
   );
 };

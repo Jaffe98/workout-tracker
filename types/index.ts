@@ -24,3 +24,7 @@ export interface Exercise {
     created_at: string;
   }
   
+  export interface Exercise {
+    name: string;
+  }
+  
