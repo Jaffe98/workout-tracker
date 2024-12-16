@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../utils/supabaseClient';
+import { Exercise } from '../types'; // 🚀 Import the Exercise type
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -7,8 +8,8 @@ const ExerciseSetupForm = () => {
   const [name, setName] = useState('');
   const [days, setDays] = useState<string[]>([]);
   const [successMessage, setSuccessMessage] = useState<string>('');
-  const [exercises, setExercises] = useState([]);
-  const [editedExercises, setEditedExercises] = useState({});
+  const [exercises, setExercises] = useState<Exercise[]>([]); // ✅ Correct Type for useState
+  const [editedExercises, setEditedExercises] = useState<{ [key: number]: string[] }>({});
 
   useEffect(() => {
     fetchExercises();
@@ -17,8 +18,8 @@ const ExerciseSetupForm = () => {
   const fetchExercises = async () => {
     const { data, error } = await supabase.from('exercise_list').select('*');
     if (data) {
-      setExercises(data);
-      const initialEdits = {};
+      setExercises(data as Exercise[]); // ✅ Tell TypeScript that data is an array of Exercise
+      const initialEdits: { [key: number]: string[] } = {};
       data.forEach((exercise) => {
         initialEdits[exercise.id] = [...exercise.days];
       });
@@ -27,23 +28,13 @@ const ExerciseSetupForm = () => {
     if (error) console.error('Error fetching exercises:', error);
   };
 
-  const handleDayChange = (exerciseId, day) => {
+  const handleDayChange = (exerciseId: number, day: string) => {
     setEditedExercises((prevEdits) => {
       const updatedDays = prevEdits[exerciseId].includes(day)
         ? prevEdits[exerciseId].filter((d) => d !== day)
         : [...prevEdits[exerciseId], day];
       return { ...prevEdits, [exerciseId]: updatedDays };
     });
-  };
-
-  const handleSaveChanges = async () => {
-    for (const [id, updatedDays] of Object.entries(editedExercises)) {
-      const { error } = await supabase.from('exercise_list').update({ days: updatedDays }).eq('id', id);
-      if (error) console.error('Error updating exercise:', error);
-    }
-    setSuccessMessage('Changes saved!');
-    setTimeout(() => setSuccessMessage(''), 3000);
-    fetchExercises();
   };
 
   const handleSubmit = async () => {
@@ -65,25 +56,13 @@ const ExerciseSetupForm = () => {
     }
   };
 
-  const handleDelete = async (exerciseId: number) => {
-    const { error } = await supabase.from('exercise_list').delete().eq('id', exerciseId);
-    if (error) {
-      console.error('Error deleting exercise:', error);
-      alert('Failed to delete exercise. Please try again.');
-    } else {
-      setSuccessMessage('Exercise deleted!');
-      setTimeout(() => setSuccessMessage(''), 3000);
-      fetchExercises();
-    }
-  };
-
   return (
     <div className="setup-form">
       <a href="/" className="done-link">Done setting up exercises</a>
 
       <h2>Setup New Exercise</h2>
 
-      {successMessage && <div className="success-message fade-in-out">{successMessage}</div>}
+      {successMessage && <div className="success-message">{successMessage}</div>}
 
       <div className="form-group">
         <label>Exercise Name</label>
@@ -92,7 +71,6 @@ const ExerciseSetupForm = () => {
           placeholder="Enter exercise name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="text-input"
         />
       </div>
 
@@ -100,7 +78,7 @@ const ExerciseSetupForm = () => {
         <label>Days</label>
         <div className="checkbox-group">
           {DAYS_OF_WEEK.map((day) => (
-            <label key={day} className="checkbox-label">
+            <label key={day}>
               <input
                 type="checkbox"
                 checked={days.includes(day)}
@@ -114,41 +92,16 @@ const ExerciseSetupForm = () => {
         </div>
       </div>
 
-      <button onClick={handleSubmit} className="submit-button">Add Exercise</button>
+      <button onClick={handleSubmit}>Add Exercise</button>
 
       <h3>Existing Exercises</h3>
-      <table className="exercise-table">
-        <thead>
-          <tr>
-            <th>Exercise Name</th>
-            {DAYS_OF_WEEK.map((day) => (
-              <th key={day}>{day}</th>
-            ))}
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {exercises.map((exercise) => (
-            <tr key={exercise.id}>
-              <td>{exercise.name}</td>
-              {DAYS_OF_WEEK.map((day) => (
-                <td key={day}>
-                  <input
-                    type="checkbox"
-                    checked={editedExercises[exercise.id]?.includes(day)}
-                    onChange={() => handleDayChange(exercise.id, day)}
-                  />
-                </td>
-              ))}
-              <td>
-                <button onClick={() => handleDelete(exercise.id)} className="delete-button">Delete</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      <button onClick={handleSaveChanges} className="save-button">Save Changes</button>
+      <ul>
+        {exercises.map((exercise) => (
+          <li key={exercise.id}>
+            {exercise.name} ({exercise.days.join(', ')})
+          </li>
+        ))}
+      </ul>
     </div>
   );
 };
