@@ -15,16 +15,4 @@ export interface Exercise {
     notes?: string;
     created_at: string;
   }
-
-  // This defines the structure of an Exercise
-export interface Exercise {
-    id: number;
-    name: string;
-    days: string[];
-    created_at: string;
-  }
-  
-  export interface Exercise {
-    name: string;
-  }
   
